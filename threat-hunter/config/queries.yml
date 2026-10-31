@@ -1,0 +1,69 @@
+scheduled_hunts:
+  - name: SQL Injection Hunt
+    schedule: "0 */6 * * *"
+    severity: high
+    mitre_technique: T1190
+    query: |
+      index=* sourcetype=access_combined OR sourcetype=web_application
+      | regex _raw="(?i)(union|select|insert|update|delete|drop|;--|'--|\bor\b.*=.*)"
+      | stats count by src_ip, uri_path, user_agent
+      | where count > 5
+      | eval severity="high", attack_type="sql_injection"
+
+  - name: LDAP Injection Detection
+    schedule: "0 */6 * * *"
+    severity: high
+    mitre_technique: T1078
+    query: |
+      index=* sourcetype=web_application OR sourcetype=ldap_auth
+      | regex username="(\*|\)|\(|\&|\|)"
+      | stats count by src_ip, username, auth_result
+      | where count > 3
+      | eval severity="high", attack_type="ldap_injection"
+
+  - name: LSass Memory Dump Detection
+    schedule: "0 */6 * * *"
+    severity: critical
+    mitre_technique: T1003.001
+    query: |
+      index=* sourcetype="WinEventLog:Security" EventCode=4656
+      | search Object_Name="*lsass.exe"
+      | search Access_Mask="0x1fffff" OR Access_Mask="0x1410"
+      | stats count by hostname, user, Process_Name
+      | eval severity="critical", attack_type="credential_dumping"
+
+  - name: Malicious IOC Detection
+    schedule: "0 */2 * * *"
+    severity: critical
+    mitre_technique: T1071
+    query: |
+      index=* (sourcetype=firewall OR sourcetype=dns)
+      | lookup malicious_ips.csv ip AS dest_ip OUTPUT threat_name
+      | lookup malicious_domains.csv domain AS query OUTPUT threat_name
+      | where isnotnull(threat_name)
+      | stats count by src_ip, dest_ip, query, threat_name
+      | eval severity="critical", attack_type="ioc_match"
+
+  - name: Lateral Movement Detection
+    schedule: "0 */6 * * *"
+    severity: high
+    mitre_technique: T1021
+    query: |
+      index=* sourcetype="WinEventLog:Security"
+      (EventCode=4648 OR EventCode=5145 OR EventCode=4624)
+      | search (Share_Name="*IPC$" OR Process_Name="*psexec*" OR Process_Name="*wmi*")
+      | transaction src_hostname dest_hostname maxspan=30m
+      | where eventcount > 3
+      | eval severity="high", attack_type="lateral_movement"
+
+  - name: Suspicious Process Execution
+    schedule: "0 */6 * * *"
+    severity: medium
+    mitre_technique: T1059
+    query: |
+      index=* sourcetype="WinEventLog:Security" EventCode=4688
+      | search (Process_Name="*powershell*" OR Process_Name="*cmd.exe*" OR Process_Name="*wscript*")
+      | search CommandLine="*-enc*" OR CommandLine="*bypass*" OR CommandLine="*hidden*"
+      | stats count by hostname, user, Process_Name, CommandLine
+      | where count > 2
+      | eval severity="medium", attack_type="suspicious_execution"

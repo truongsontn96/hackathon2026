@@ -1,0 +1,77 @@
+mitre_techniques:
+  T1190:
+    name: Exploit Public-Facing Application
+    tactic: Initial Access
+    description: Adversaries exploit vulnerabilities in public-facing applications
+    hunts:
+      - sqli
+      - ldap_injection
+    severity: high
+
+  T1078:
+    name: Valid Accounts
+    tactic: Defense Evasion, Persistence, Privilege Escalation, Initial Access
+    description: Adversaries use legitimate credentials
+    hunts:
+      - ldap_injection
+    severity: high
+
+  T1003.001:
+    name: "OS Credential Dumping: LSASS Memory"
+    tactic: Credential Access
+    description: Adversaries access credential material from LSASS memory
+    hunts:
+      - lsass_dump
+    severity: critical
+    tools:
+      - Mimikatz
+      - ProcDump
+      - Comsvcs.dll
+
+  T1071:
+    name: Application Layer Protocol
+    tactic: Command and Control
+    description: Adversaries communicate using application layer protocols
+    hunts:
+      - ioc_detection
+    severity: critical
+
+  T1021:
+    name: Remote Services
+    tactic: Lateral Movement
+    description: Adversaries use remote services to move laterally
+    sub_techniques:
+      - T1021.002: SMB/Windows Admin Shares
+      - T1021.006: Windows Remote Management
+    hunts:
+      - lateral_movement
+    severity: high
+
+  T1059:
+    name: Command and Scripting Interpreter
+    tactic: Execution
+    description: Adversaries abuse command interpreters to execute commands
+    hunts:
+      - suspicious_execution
+    severity: medium
+
+response_actions:
+  critical:
+    - Isolate affected systems immediately
+    - Block malicious IPs/domains at firewall
+    - Reset credentials for affected accounts
+    - Initiate incident response procedure
+    - Notify security team and management
+
+  high:
+    - Investigate affected systems
+    - Monitor for additional indicators
+    - Consider temporary access restrictions
+    - Document findings for IR team
+    - Increase logging on affected systems
+
+  medium:
+    - Add to monitoring watchlist
+    - Correlate with other events
+    - Schedule follow-up investigation
+    - Update detection rules if needed

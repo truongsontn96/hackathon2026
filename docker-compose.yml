@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  splunk:
+    image: splunk/splunk:latest
+    container_name: splunk-lab
+    hostname: splunk
+    environment:
+      - SPLUNK_START_ARGS=--accept-license
+      - SPLUNK_PASSWORD=Admin@123456
+      - SPLUNK_HEC_TOKEN=abcd1234-5678-90ef-ghij-klmnopqrstuv
+    ports:
+      - "8000:8000"   # Web UI
+      - "8088:8088"   # HEC
+      - "9997:9997"   # Forwarder
+      - "8089:8089"   # Management
+    volumes:
+      - ./splunk_data/etc:/opt/splunk/etc
+      - ./splunk_data/var:/opt/splunk/var
+      - ./data:/data
+    networks:
+      - splunk-net
+    restart: unless-stopped
+
+  data-generator:
+    build:
+      context: ./data-generator
+      dockerfile: Dockerfile
+    container_name: threat-data-generator
+    environment:
+      - SPLUNK_HEC_URL=https://splunk:8088
+      - SPLUNK_HEC_TOKEN=abcd1234-5678-90ef-ghij-klmnopqrstuv
+      - GENERATION_INTERVAL=60
+    volumes:
+      - ./data:/output
+    depends_on:
+      - splunk
+    networks:
+      - splunk-net
+    restart: unless-stopped
+
+  threat-hunter-agent:
+    build:
+      context: ./threat-hunter
+      dockerfile: Dockerfile
+    container_name: threat-hunter-agent
+    environment:
+      - SPLUNK_HOST=splunk
+      - SPLUNK_PORT=8089
+      - SPLUNK_USERNAME=admin
+      - SPLUNK_PASSWORD=Admin@123456
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - SCHEDULE_CRON=0 */6 * * *
+    volumes:
+      - ./threat-hunter/reports:/app/reports
+      - ./threat-hunter/config:/app/config
+    depends_on:
+      - splunk
+    networks:
+      - splunk-net
+    restart: unless-stopped
+
+networks:
+  splunk-net:
+    driver: bridge
+
+volumes:
+  splunk-etc:
+  splunk-var:
