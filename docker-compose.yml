@@ -9,6 +9,7 @@ services:
       - SPLUNK_START_ARGS=--accept-license
       - SPLUNK_PASSWORD=Admin@123456
       - SPLUNK_HEC_TOKEN=abcd1234-5678-90ef-ghij-klmnopqrstuv
+      - SPLUNK_GENERAL_TERMS=--accept-sgt-current-at-splunk-com
     ports:
       - "8000:8000"   # Web UI
       - "8088:8088"   # HEC
@@ -28,7 +29,7 @@ services:
       dockerfile: Dockerfile
     container_name: threat-data-generator
     environment:
-      - SPLUNK_HEC_URL=https://splunk:8088
+      - SPLUNK_HEC_URL=https://splunk:8088/services/collector/event
       - SPLUNK_HEC_TOKEN=abcd1234-5678-90ef-ghij-klmnopqrstuv
       - GENERATION_INTERVAL=60
     volumes:
@@ -50,6 +51,9 @@ services:
       - SPLUNK_USERNAME=admin
       - SPLUNK_PASSWORD=Admin@123456
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_AUTH_TOKEN=${ANTHROPIC_AUTH_TOKEN}
+      - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL}
+      - ANTHROPIC_DEFAULT_SONNET_MODEL=${ANTHROPIC_DEFAULT_SONNET_MODEL}
       - SCHEDULE_CRON=0 */6 * * *
     volumes:
       - ./threat-hunter/reports:/app/reports

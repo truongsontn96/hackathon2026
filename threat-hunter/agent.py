@@ -21,7 +21,12 @@ class ThreatHunterAgent:
         self.splunk_port = int(os.getenv('SPLUNK_PORT', '8089'))
         self.splunk_username = os.getenv('SPLUNK_USERNAME', 'admin')
         self.splunk_password = os.getenv('SPLUNK_PASSWORD', 'Admin@123456')
-        self.anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
+
+        # Anthropic/LLMGate configuration
+        self.anthropic_api_key = os.getenv('ANTHROPIC_API_KEY') or os.getenv('ANTHROPIC_AUTH_TOKEN')
+        self.anthropic_base_url = os.getenv('ANTHROPIC_BASE_URL')
+        self.anthropic_model = os.getenv('ANTHROPIC_DEFAULT_SONNET_MODEL', 'claude-sonnet-4-20250514')
+
         self.schedule_cron = os.getenv('SCHEDULE_CRON', '0 */6 * * *')
 
         self.config_dir = Path('/app/config')
@@ -72,14 +77,25 @@ class ThreatHunterAgent:
             return False
 
     def connect_anthropic(self):
-        """Initialize Anthropic client"""
+        """Initialize Anthropic client with custom base URL support"""
         if not self.anthropic_api_key:
-            print("[WARN] No ANTHROPIC_API_KEY provided, AI features disabled")
+            print("[WARN] No ANTHROPIC_API_KEY/ANTHROPIC_AUTH_TOKEN provided, AI features disabled")
             return False
 
         try:
-            self.anthropic_client = anthropic.Anthropic(api_key=self.anthropic_api_key)
-            print("[SUCCESS] Anthropic client initialized")
+            # Support custom base URL (e.g., llmgate.app)
+            if self.anthropic_base_url:
+                self.anthropic_client = anthropic.Anthropic(
+                    api_key=self.anthropic_api_key,
+                    base_url=self.anthropic_base_url
+                )
+                print(f"[SUCCESS] Anthropic client initialized with base URL: {self.anthropic_base_url}")
+                print(f"[INFO] Using model: {self.anthropic_model}")
+            else:
+                self.anthropic_client = anthropic.Anthropic(api_key=self.anthropic_api_key)
+                print("[SUCCESS] Anthropic client initialized (default endpoint)")
+                print(f"[INFO] Using model: {self.anthropic_model}")
+
             return True
         except Exception as e:
             print(f"[ERROR] Failed to initialize Anthropic: {e}")
@@ -144,7 +160,7 @@ Please provide:
 Format your response as JSON with keys: summary, risk_level, analysis, impact, immediate_actions, preventive_measures, mitre_techniques"""
 
             message = self.anthropic_client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model=self.anthropic_model,
                 max_tokens=2000,
                 messages=[{"role": "user", "content": prompt}]
             )

@@ -24,6 +24,26 @@ class ThreatDataGenerator:
         print(f"[INFO] HEC URL: {self.splunk_hec_url}")
         print(f"[INFO] Generation interval: {self.generation_interval}s")
 
+    def wait_for_splunk(self, max_retries=30, retry_delay=10):
+        """Wait for Splunk HEC to be ready"""
+        print("[INFO] Waiting for Splunk HEC to be ready...")
+
+        health_url = self.splunk_hec_url.replace('/services/collector/event', '/services/collector/health')
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                response = requests.get(health_url, verify=False, timeout=5)
+                if response.status_code == 200:
+                    print(f"[SUCCESS] Splunk HEC is ready!")
+                    return True
+            except Exception:
+                print(f"[WAIT] Attempt {attempt}/{max_retries}: Splunk not ready yet...")
+
+            time.sleep(retry_delay)
+
+        print("[WARN] Splunk HEC still not ready after max retries. Will continue anyway.")
+        return False
+
     def send_to_splunk(self, events, sourcetype):
         """Send events to Splunk HEC"""
         headers = {
@@ -79,7 +99,7 @@ class ThreatDataGenerator:
         self.save_to_file(ldap_events, 'ldap_injection.json')
 
         # LSass dumping
-        if random.random() > 0.7:  # 30% chance
+        if random.random() > 0.7:
             lsass_events = lsass_dump.generate_lsass_dump_events(count=random.randint(1, 5))
             self.send_to_splunk(lsass_events, 'WinEventLog:Security')
             self.save_to_file(lsass_events, 'lsass_dumps.json')
@@ -90,7 +110,7 @@ class ThreatDataGenerator:
         self.save_to_file(ioc_events, 'ioc_matches.json')
 
         # Lateral movement
-        if random.random() > 0.8:  # 20% chance
+        if random.random() > 0.8:
             lateral_events = lateral_movement.generate_lateral_movement_events(count=random.randint(2, 8))
             self.send_to_splunk(lateral_events, 'WinEventLog:Security')
             self.save_to_file(lateral_events, 'lateral_movement.json')
@@ -100,6 +120,9 @@ class ThreatDataGenerator:
     def run(self):
         """Run generator on schedule"""
         print("[INFO] Starting scheduled threat generation...")
+
+        # Wait for Splunk to be ready before generating
+        self.wait_for_splunk()
 
         # Run immediately on start
         self.generate_threats()

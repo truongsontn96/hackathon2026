@@ -29,3 +29,9 @@ Thumbs.db
 
 # Docker
 *.pid
+
+# Real attack data (large files)
+real-attack-data/
+*.zip
+*.evtx
+*.pcap
